@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ucc-a2ui"
+version = "0.1.0"
+description = "UCC A2UI-style UI IR generator"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "UCC A2UI"}]
+
+dependencies = [
+  "pyyaml>=6.0",
+  "pandas>=2.2",
+  "openpyxl>=3.1",
+  "numpy>=1.26",
+  "faiss-cpu>=1.8.0",
+  "requests>=2.31",
+  "jsonschema>=4.22",
+  "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2",
+]
+
+[project.scripts]
+ucc-a2ui = "ucc_a2ui.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
