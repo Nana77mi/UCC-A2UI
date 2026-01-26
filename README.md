@@ -1,14 +1,14 @@
 # UCC A2UI（方案 A）UI 生成系统
 
-本仓库从零实现 **A2UI 方案 A（UCC IR 为主 + 测试集/评测集）** 的同款格式和闭环，只允许使用 UCC 白名单组件与参数体系。所有组件、参数、主题色均来自 Excel 真源，并且支持组件文档自动生成与 embedding 索引同步更新。
+本仓库从零实现 **A2UI 方案 A（UCC IR 为主 + 测试集/评测集）** 的同款格式和闭环，只允许使用 UCC 白名单组件与参数体系。所有组件、参数、主题色均来自 JSON 真源（Excel 仅作为临时过渡输入），并且支持组件文档自动生成与 embedding 索引同步更新。
 
 ## 方案 A 对齐说明
-- **层 1：Library（SSOT）**：从 Excel 读取 UCC 组件清单与参数，生成 `library.json` 作为唯一真源输出。
+- **层 1：Library（SSOT）**：从 JSON 读取 UCC 组件清单与参数，生成 `library.json` 作为唯一真源输出。
 - **层 2：Generator（NL -> UI IR）**：Prompt Builder（Plan + IR）、LLM 输出 JSON、IR 校验（Schema + 白名单 + binding/事件）并输出 `ui_ir.json` + `ui_report.json`。
 - **层 3：Knowledge（Docs + Embedding）**：从 Library 生成组件文档，自动构建 embedding 索引，提供检索 CLI。
 - **测试集/评测**：内置 fixtures + pytest 保障 prompt/规则变更可回归。
 
-> 说明：本仓库不是直接拷贝 A2UI 实现，而是 **对齐 A2UI 方案 A 的结构、输出格式、数据流**，并将组件体系严格替换为 UCC Excel 白名单。
+> 说明：本仓库不是直接拷贝 A2UI 实现，而是 **对齐 A2UI 方案 A 的结构、输出格式、数据流**，并将组件体系严格替换为 UCC 白名单。当前支持 JSON 为真源，Excel 仅为临时过渡。
 
 ---
 
@@ -19,7 +19,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]
 
-# 同步：读取 Excel -> library.json -> docs -> index
+# 同步：读取 JSON -> library.json -> docs -> index
 ucc-a2ui sync --config config.yaml
 
 # 生成：自然语言 -> IR + report
@@ -32,7 +32,58 @@ ucc-a2ui validate --in out/ui_ir.json
 ucc-a2ui search --query "按钮" --k 5
 ```
 
-> mock 模式默认离线可运行。需要真实 Excel 时，在 `config.yaml` 中配置路径。
+> mock 模式默认离线可运行。默认使用 `data/components.json` 与 `data/params.json` 作为输入。可在 `config.yaml` 中覆盖路径。
+
+---
+
+## PyCharm 一键调试（无需 CLI）
+
+项目提供 `scripts/debug_run.py` 直接运行入口，适合在 PyCharm 里点运行：
+
+```bash
+python scripts/debug_run.py
+```
+
+该脚本会读取 `config.yaml`，加载 JSON 白名单，运行 `generate` 并输出 IR/Report 与 Plan。
+
+---
+
+## JSON 真源格式
+
+### `data/components.json`
+```json
+{
+  "components": [
+    {
+      "ComponentGroup": "基础",
+      "ComponentName_CN": "按钮",
+      "ComponentName_EN": "Button",
+      "KeyParams": ["text", "color"],
+      "MaterialLike_DefaultColors": "primary=#1976d2;secondary=#9c27b0"
+    }
+  ]
+}
+```
+
+### `data/params.json`
+```json
+{
+  "params": [
+    {
+      "ComponentName": "Button",
+      "ParamCategory": "Style",
+      "ParamName": "text",
+      "ValueType": "string",
+      "EnumValues": "",
+      "DefaultValue": "",
+      "Required": "yes",
+      "Notes": ""
+    }
+  ]
+}
+```
+
+> Excel 仍可作为过渡输入（`library.source_format: excel`），但默认以 JSON 为准。
 
 ---
 
@@ -83,7 +134,7 @@ llm:
 ---
 
 ## 新增组件流程
-1. 更新 Excel（组件/参数）。
+1. 更新 JSON（组件/参数）。
 2. 执行 `ucc-a2ui sync`：
    - 自动生成/更新 `library.json`
    - 重新生成 `docs/components/*.md`
@@ -157,12 +208,19 @@ ucc-a2ui/
   pyproject.toml
   config.yaml
   README.md
+  data/
+    components.json
+    params.json
+  scripts/
+    debug_run.py
   src/ucc_a2ui/
     __init__.py
     config.py
     library/
       __init__.py
       excel_loader.py
+      json_loader.py
+      source_loader.py
       normalize.py
       whitelist.py
       theme.py
@@ -203,7 +261,7 @@ ucc-a2ui/
 ---
 
 ## 设计要点（摘要）
-- **白名单约束**：组件 type 只来自 Excel 的 `ComponentName_EN`，统一 normalize 为 `lower_snake`；props 仅允许 KeyParams 或 strict 模式 Params_v0。校验器强制检查，生成器的 Prompt 也注入白名单摘要。
-- **文档 & embedding 同步**：`ucc-a2ui sync` 串联 Excel -> library.json -> docs -> FAISS index，新增组件后立即更新 docs/index 并可检索。
+- **白名单约束**：组件 type 只来自 JSON/Excel 的 `ComponentName_EN`，统一 normalize 为 `lower_snake`；props 仅允许 KeyParams 或 strict 模式 Params_v0。校验器强制检查，生成器的 Prompt 也注入白名单摘要。
+- **文档 & embedding 同步**：`ucc-a2ui sync` 串联 Library -> docs -> FAISS index，新增组件后立即更新 docs/index 并可检索。
 - **严格参数模式**：`config.yaml` 中 `library.strict_params: true` 时，prop 白名单切换为 Params_v0 的 ParamName，并按 ParamCategory 分类。
 

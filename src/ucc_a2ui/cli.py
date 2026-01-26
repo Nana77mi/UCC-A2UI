@@ -12,14 +12,24 @@ from .embed.chunker import chunk_documents_with_sources
 from .embed.index_faiss import IndexedChunk, build_faiss_index, save_faiss_index
 from .embed.search import search_index
 from .generator import generate_ui, validate_ir
-from .library import build_whitelist, export_library, load_component_library, load_params_library
+from .library import LibrarySourceConfig, build_whitelist, export_library, load_library_sources
 
 
 def _load_whitelist(config: Config):
-    component_path = config.get("library", "excel_component_path")
-    params_path = config.get("library", "excel_params_path")
-    components = load_component_library(component_path)
-    params = load_params_library(params_path)
+    source_format = config.get("library", "source_format", default="json")
+    component_path = config.get("library", "component_path")
+    params_path = config.get("library", "params_path")
+    if not component_path or not params_path:
+        component_path = config.get("library", "excel_component_path")
+        params_path = config.get("library", "excel_params_path")
+        source_format = "excel"
+
+    sources = LibrarySourceConfig(
+        component_path=component_path,
+        params_path=params_path,
+        source_format=source_format,
+    )
+    components, params = load_library_sources(sources)
     return build_whitelist(components, params)
 
 

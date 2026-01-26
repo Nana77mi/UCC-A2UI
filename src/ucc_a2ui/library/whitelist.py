@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Dict, List
 
 from .excel_loader import ComponentRecord, ParamRecord
+from .json_loader import JSONComponentRecord, JSONParamRecord
 
 EVENT_WHITELIST = [
     "onClick",
@@ -39,8 +40,8 @@ class LibraryWhitelist:
 
 
 def build_whitelist(
-    components: List[ComponentRecord],
-    params: List[ParamRecord],
+    components: List[ComponentRecord] | List[JSONComponentRecord],
+    params: List[ParamRecord] | List[JSONParamRecord],
 ) -> LibraryWhitelist:
     param_map: Dict[str, List[ParamRecord]] = {}
     for param in params:

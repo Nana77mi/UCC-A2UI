@@ -1,0 +1,18 @@
+{
+  "components": [
+    {
+      "ComponentGroup": "基础",
+      "ComponentName_CN": "按钮",
+      "ComponentName_EN": "Button",
+      "KeyParams": ["text", "color"],
+      "MaterialLike_DefaultColors": "primary=#1976d2;secondary=#9c27b0"
+    },
+    {
+      "ComponentGroup": "基础",
+      "ComponentName_CN": "文本",
+      "ComponentName_EN": "Text",
+      "KeyParams": ["text"],
+      "MaterialLike_DefaultColors": "primary=#1976d2"
+    }
+  ]
+}

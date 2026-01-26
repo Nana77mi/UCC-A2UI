@@ -3,54 +3,60 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from openpyxl import Workbook
-
 from ucc_a2ui.config import Config
 from ucc_a2ui.generator import generate_ui
-from ucc_a2ui.library import build_whitelist, load_component_library, load_params_library
+from ucc_a2ui.library import LibrarySourceConfig, build_whitelist, load_library_sources
 
 
-def _write_excel(component_path: Path, params_path: Path) -> None:
-    wb = Workbook()
-    ws = wb.active
-    ws.append(
-        [
-            "ComponentGroup",
-            "ComponentName_CN",
-            "ComponentName_EN",
-            "KeyParams",
-            "MaterialLike_DefaultColors",
-        ]
+def _write_json(component_path: Path, params_path: Path) -> None:
+    component_path.write_text(
+        """
+{
+  "components": [
+    {
+      "ComponentGroup": "基础",
+      "ComponentName_CN": "文本",
+      "ComponentName_EN": "Text",
+      "KeyParams": ["text"],
+      "MaterialLike_DefaultColors": "primary=#222222"
+    }
+  ]
+}
+""",
+        encoding="utf-8",
     )
-    ws.append(["基础", "文本", "Text", "text", "primary=#222222"])
-    wb.save(component_path)
-
-    wb = Workbook()
-    ws = wb.active
-    ws.append(
-        [
-            "ComponentGroup",
-            "ComponentName",
-            "ParamCategory",
-            "ParamName",
-            "ValueType",
-            "EnumValues",
-            "DefaultValue",
-            "Required",
-            "Notes",
-        ]
+    params_path.write_text(
+        """
+{
+  "params": [
+    {
+      "ComponentName": "Text",
+      "ParamCategory": "Data",
+      "ParamName": "text",
+      "ValueType": "string",
+      "EnumValues": "",
+      "DefaultValue": "",
+      "Required": "yes",
+      "Notes": ""
+    }
+  ]
+}
+""",
+        encoding="utf-8",
     )
-    ws.append(["基础", "Text", "Data", "text", "string", "", "", "yes", ""])
-    wb.save(params_path)
 
 
 def test_generate_mock(tmp_path: Path) -> None:
-    component_path = tmp_path / "components.xlsx"
-    params_path = tmp_path / "params.xlsx"
-    _write_excel(component_path, params_path)
+    component_path = tmp_path / "components.json"
+    params_path = tmp_path / "params.json"
+    _write_json(component_path, params_path)
 
-    components = load_component_library(component_path)
-    params = load_params_library(params_path)
+    sources = LibrarySourceConfig(
+        component_path=str(component_path),
+        params_path=str(params_path),
+        source_format="json",
+    )
+    components, params = load_library_sources(sources)
     whitelist = build_whitelist(components, params)
 
     config_path = tmp_path / "config.yaml"

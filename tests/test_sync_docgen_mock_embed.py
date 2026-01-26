@@ -2,57 +2,63 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openpyxl import Workbook
-
 from ucc_a2ui.docs import generate_docs
 from ucc_a2ui.embed import build_embedder
 from ucc_a2ui.embed.chunker import chunk_documents_with_sources
 from ucc_a2ui.embed.index_faiss import IndexedChunk, build_faiss_index, save_faiss_index
 from ucc_a2ui.embed.search import search_index
-from ucc_a2ui.library import build_whitelist, load_component_library, load_params_library
+from ucc_a2ui.library import LibrarySourceConfig, build_whitelist, load_library_sources
 
 
-def _write_excel(component_path: Path, params_path: Path) -> None:
-    wb = Workbook()
-    ws = wb.active
-    ws.append(
-        [
-            "ComponentGroup",
-            "ComponentName_CN",
-            "ComponentName_EN",
-            "KeyParams",
-            "MaterialLike_DefaultColors",
-        ]
+def _write_json(component_path: Path, params_path: Path) -> None:
+    component_path.write_text(
+        """
+{
+  "components": [
+    {
+      "ComponentGroup": "基础",
+      "ComponentName_CN": "列表",
+      "ComponentName_EN": "List",
+      "KeyParams": ["items"],
+      "MaterialLike_DefaultColors": "primary=#000000"
+    }
+  ]
+}
+""",
+        encoding="utf-8",
     )
-    ws.append(["基础", "列表", "List", "items", "primary=#000000"])
-    wb.save(component_path)
-
-    wb = Workbook()
-    ws = wb.active
-    ws.append(
-        [
-            "ComponentGroup",
-            "ComponentName",
-            "ParamCategory",
-            "ParamName",
-            "ValueType",
-            "EnumValues",
-            "DefaultValue",
-            "Required",
-            "Notes",
-        ]
+    params_path.write_text(
+        """
+{
+  "params": [
+    {
+      "ComponentName": "List",
+      "ParamCategory": "Data",
+      "ParamName": "items",
+      "ValueType": "array",
+      "EnumValues": "",
+      "DefaultValue": "",
+      "Required": "yes",
+      "Notes": ""
+    }
+  ]
+}
+""",
+        encoding="utf-8",
     )
-    ws.append(["基础", "List", "Data", "items", "array", "", "", "yes", ""])
-    wb.save(params_path)
 
 
 def test_sync_docgen_and_search(tmp_path: Path) -> None:
-    component_path = tmp_path / "components.xlsx"
-    params_path = tmp_path / "params.xlsx"
-    _write_excel(component_path, params_path)
+    component_path = tmp_path / "components.json"
+    params_path = tmp_path / "params.json"
+    _write_json(component_path, params_path)
 
-    components = load_component_library(component_path)
-    params = load_params_library(params_path)
+    sources = LibrarySourceConfig(
+        component_path=str(component_path),
+        params_path=str(params_path),
+        source_format="json",
+    )
+    components, params = load_library_sources(sources)
     whitelist = build_whitelist(components, params)
 
     docs_dir = tmp_path / "docs"

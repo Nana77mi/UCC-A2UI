@@ -2,55 +2,69 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openpyxl import Workbook
-
 from ucc_a2ui.generator.validator import validate_ir
-from ucc_a2ui.library import build_whitelist, load_component_library, load_params_library
+from ucc_a2ui.library import LibrarySourceConfig, build_whitelist, load_library_sources
 
 
-def _write_excel(component_path: Path, params_path: Path) -> None:
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "components"
-    ws.append(
-        [
-            "ComponentGroup",
-            "ComponentName_CN",
-            "ComponentName_EN",
-            "KeyParams",
-            "MaterialLike_DefaultColors",
-        ]
+def _write_json(component_path: Path, params_path: Path) -> None:
+    component_path.write_text(
+        """
+{
+  "components": [
+    {
+      "ComponentGroup": "基础",
+      "ComponentName_CN": "按钮",
+      "ComponentName_EN": "Button",
+      "KeyParams": ["text", "color"],
+      "MaterialLike_DefaultColors": "primary=#111111"
+    }
+  ]
+}
+""",
+        encoding="utf-8",
     )
-    ws.append(["基础", "按钮", "Button", "text,color", "primary=#111111"])
-    wb.save(component_path)
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "params"
-    ws.append(
-        [
-            "ComponentGroup",
-            "ComponentName",
-            "ParamCategory",
-            "ParamName",
-            "ValueType",
-            "EnumValues",
-            "DefaultValue",
-            "Required",
-            "Notes",
-        ]
+    params_path.write_text(
+        """
+{
+  "params": [
+    {
+      "ComponentName": "Button",
+      "ParamCategory": "Style",
+      "ParamName": "text",
+      "ValueType": "string",
+      "EnumValues": "",
+      "DefaultValue": "",
+      "Required": "yes",
+      "Notes": ""
+    },
+    {
+      "ComponentName": "Button",
+      "ParamCategory": "Style",
+      "ParamName": "color",
+      "ValueType": "string",
+      "EnumValues": "",
+      "DefaultValue": "",
+      "Required": "no",
+      "Notes": ""
+    }
+  ]
+}
+""",
+        encoding="utf-8",
     )
-    ws.append(["基础", "Button", "Style", "text", "string", "", "", "yes", ""])
-    ws.append(["基础", "Button", "Style", "color", "string", "", "", "no", ""])
-    wb.save(params_path)
 
 
 def _load_whitelist(tmp_path: Path):
-    component_path = tmp_path / "components.xlsx"
-    params_path = tmp_path / "params.xlsx"
-    _write_excel(component_path, params_path)
-    components = load_component_library(component_path)
-    params = load_params_library(params_path)
+    component_path = tmp_path / "components.json"
+    params_path = tmp_path / "params.json"
+    _write_json(component_path, params_path)
+    sources = LibrarySourceConfig(
+        component_path=str(component_path),
+        params_path=str(params_path),
+        source_format="json",
+    )
+    components, params = load_library_sources(sources)
     return build_whitelist(components, params)
 
 
