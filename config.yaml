@@ -1,9 +1,5 @@
 library:
-  source_format: json  # json | excel
-  component_path: data/components.json
-  params_path: data/params.json
-  excel_component_path: /mnt/data/UCC_Component_Library_with_params_and_material_colors.xlsx
-  excel_params_path: /mnt/data/UCC_Component_Params_v0.xlsx
+  component_path: data/ucc_component_params.json
   strict_params: false
   output_path: library.json
 

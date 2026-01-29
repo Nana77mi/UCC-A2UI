@@ -5,7 +5,7 @@ from pathlib import Path
 
 from ucc_a2ui.config import Config
 from ucc_a2ui.generator import generate_ui
-from ucc_a2ui.library import LibrarySourceConfig, build_whitelist, load_library_sources
+from ucc_a2ui.library import build_whitelist, load_component_schema_json
 
 
 def main() -> None:
@@ -13,17 +13,12 @@ def main() -> None:
     config_path = repo_root / "config.yaml"
     config = Config.load(config_path)
 
-    source_format = config.get("library", "source_format", default="json")
     component_path = config.get("library", "component_path")
-    params_path = config.get("library", "params_path")
+    if not component_path:
+        raise ValueError("library.component_path is required for JSON schema input.")
 
-    sources = LibrarySourceConfig(
-        component_path=str(repo_root / component_path),
-        params_path=str(repo_root / params_path),
-        source_format=source_format,
-    )
-    components, params = load_library_sources(sources)
-    whitelist = build_whitelist(components, params)
+    components, _ = load_component_schema_json(repo_root / component_path)
+    whitelist = build_whitelist(components)
 
     out_dir = repo_root / "out"
     prompt = "创建一个包含按钮与文本的页面"

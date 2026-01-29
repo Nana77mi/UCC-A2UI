@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List
 
-from .excel_loader import ComponentRecord, ParamRecord
 from .json_loader import JSONComponentRecord, JSONParamRecord
 
 EVENT_WHITELIST = [
@@ -30,7 +29,7 @@ class ComponentWhitelist:
     name_cn: str
     name_en: str
     key_params: List[str]
-    strict_params: List[ParamRecord]
+    strict_params: List[JSONParamRecord]
 
 
 @dataclass
@@ -39,27 +38,25 @@ class LibraryWhitelist:
     theme_tokens: Dict[str, str]
 
 
-def build_whitelist(
-    components: List[ComponentRecord] | List[JSONComponentRecord],
-    params: List[ParamRecord] | List[JSONParamRecord],
-) -> LibraryWhitelist:
-    param_map: Dict[str, List[ParamRecord]] = {}
-    for param in params:
-        if not param.component_type:
-            continue
-        param_map.setdefault(param.component_type, []).append(param)
+def _collect_params(component: JSONComponentRecord) -> List[JSONParamRecord]:
+    params: List[JSONParamRecord] = []
+    for items in component.props_by_category.values():
+        params.extend(items)
+    return params
 
-    theme_tokens: Dict[str, str] = {}
+
+def build_whitelist(components: List[JSONComponentRecord]) -> LibraryWhitelist:
     whitelist: Dict[str, ComponentWhitelist] = {}
     for component in components:
         if not component.component_type:
             continue
-        theme_tokens.update(component.theme_tokens)
+        params = _collect_params(component)
+        key_params = [param.name for param in params if param.name]
         whitelist[component.component_type] = ComponentWhitelist(
             component_type=component.component_type,
-            name_cn=component.name_cn,
-            name_en=component.name_en,
-            key_params=component.key_params,
-            strict_params=param_map.get(component.component_type, []),
+            name_cn=component.component_name,
+            name_en=component.component_name,
+            key_params=key_params,
+            strict_params=params,
         )
-    return LibraryWhitelist(components=whitelist, theme_tokens=theme_tokens)
+    return LibraryWhitelist(components=whitelist, theme_tokens={})

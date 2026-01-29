@@ -28,8 +28,8 @@ def _build_props(component) -> Dict[str, List[str]]:
     categories = {bucket: [] for bucket in CATEGORY_BUCKETS}
     if component.strict_params:
         for param in component.strict_params:
-            category = _normalize_category(param.param_category)
-            name = param.param_name.strip() if param.param_name else ""
+            category = _normalize_category(param.category)
+            name = param.name.strip() if param.name else ""
             if name:
                 categories[category].append(name)
     else:

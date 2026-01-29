@@ -3,83 +3,64 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from .normalize import normalize_component_name
 
 
 @dataclass
 class JSONComponentRecord:
-    group: str
-    name_cn: str
-    name_en: str
     component_type: str
-    key_params: List[str]
-    theme_tokens: Dict[str, str]
+    group: str
+    component_name: str
+    props_by_category: Dict[str, List["JSONParamRecord"]]
 
 
 @dataclass
 class JSONParamRecord:
-    component_type: str
-    param_category: str
-    param_name: str
+    name: str
+    category: str
     value_type: str
-    enum_values: str
-    default_value: str
-    required: str
+    enum_values: List[str]
+    description: str
+    default_value: str | None
+    required: bool
     notes: str
 
 
-def _parse_theme_tokens(raw: str) -> Dict[str, str]:
-    if not raw or not isinstance(raw, str):
-        return {}
-    tokens: Dict[str, str] = {}
-    for part in raw.split(";"):
-        if "=" in part:
-            key, value = part.split("=", 1)
-            tokens[key.strip()] = value.strip()
-    return tokens
+def _parse_param(param: dict, category: str) -> JSONParamRecord:
+    return JSONParamRecord(
+        name=str(param.get("name", "")),
+        category=category,
+        value_type=str(param.get("type", "")),
+        enum_values=list(param.get("enum", []) or []),
+        description=str(param.get("description", "")),
+        default_value=param.get("default"),
+        required=bool(param.get("required", False)),
+        notes=str(param.get("notes", "")),
+    )
 
 
-def load_component_library_json(path: str | Path) -> List[JSONComponentRecord]:
+def _parse_component(item: dict) -> JSONComponentRecord:
+    props_by_category: Dict[str, List[JSONParamRecord]] = {}
+    for category, props in (item.get("props_by_category") or {}).items():
+        props_by_category[category] = [_parse_param(prop, category) for prop in props or []]
+    component_type = normalize_component_name(item.get("type", ""))
+    return JSONComponentRecord(
+        component_type=component_type,
+        group=str(item.get("group", "")),
+        component_name=str(item.get("component_name", "")),
+        props_by_category=props_by_category,
+    )
+
+
+def load_component_schema_json(path: str | Path) -> Tuple[List[JSONComponentRecord], Dict[str, str]]:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     items = data.get("components", []) if isinstance(data, dict) else data
-    records: List[JSONComponentRecord] = []
-    for item in items or []:
-        name_en = str(item.get("ComponentName_EN", item.get("name_en", "")))
-        component_type = normalize_component_name(item.get("type") or name_en)
-        records.append(
-            JSONComponentRecord(
-                group=str(item.get("ComponentGroup", item.get("group", ""))),
-                name_cn=str(item.get("ComponentName_CN", item.get("name_cn", ""))),
-                name_en=name_en,
-                component_type=component_type,
-                key_params=list(item.get("KeyParams", item.get("key_params", [])) or []),
-                theme_tokens=_parse_theme_tokens(
-                    str(item.get("MaterialLike_DefaultColors", item.get("theme_tokens", "")))
-                ),
-            )
-        )
-    return records
-
-
-def load_params_library_json(path: str | Path) -> List[JSONParamRecord]:
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
-    items = data.get("params", []) if isinstance(data, dict) else data
-    records: List[JSONParamRecord] = []
-    for item in items or []:
-        component_raw = str(item.get("ComponentName", item.get("component", item.get("component_type", ""))))
-        component_type = normalize_component_name(component_raw)
-        records.append(
-            JSONParamRecord(
-                component_type=component_type,
-                param_category=str(item.get("ParamCategory", item.get("param_category", ""))),
-                param_name=str(item.get("ParamName", item.get("param_name", ""))),
-                value_type=str(item.get("ValueType", item.get("value_type", ""))),
-                enum_values=str(item.get("EnumValues", item.get("enum_values", ""))),
-                default_value=str(item.get("DefaultValue", item.get("default_value", ""))),
-                required=str(item.get("Required", item.get("required", ""))),
-                notes=str(item.get("Notes", item.get("notes", ""))),
-            )
-        )
-    return records
+    records = [_parse_component(item) for item in items or []]
+    metadata = {
+        "schema_version": str(data.get("schema_version", "")),
+        "source_file": str(data.get("source", {}).get("file", "")),
+        "source_sheet": str(data.get("source", {}).get("sheet", "")),
+    }
+    return records, metadata

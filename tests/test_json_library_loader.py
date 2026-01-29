@@ -3,46 +3,36 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ucc_a2ui.library import LibrarySourceConfig, load_library_sources
+from ucc_a2ui.library import load_component_schema_json
 
 
 def test_load_library_sources_json(tmp_path: Path) -> None:
-    components = {
+    schema = {
+        "schema_version": "ucc-component-params@v0",
         "components": [
             {
-                "ComponentGroup": "基础",
-                "ComponentName_CN": "按钮",
-                "ComponentName_EN": "Button",
-                "KeyParams": ["text"],
-                "MaterialLike_DefaultColors": "primary=#111111",
+                "type": "button",
+                "group": "基础组件",
+                "component_name": "Button",
+                "props_by_category": {
+                    "Data": [
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "enum": [],
+                            "description": "按钮文本",
+                            "default": None,
+                            "required": True,
+                            "notes": "",
+                        }
+                    ]
+                },
             }
-        ]
+        ],
     }
-    params = {
-        "params": [
-            {
-                "ComponentName": "Button",
-                "ParamCategory": "Style",
-                "ParamName": "text",
-                "ValueType": "string",
-                "EnumValues": "",
-                "DefaultValue": "",
-                "Required": "yes",
-                "Notes": "",
-            }
-        ]
-    }
-    component_path = tmp_path / "components.json"
-    params_path = tmp_path / "params.json"
-    component_path.write_text(json.dumps(components, ensure_ascii=False), encoding="utf-8")
-    params_path.write_text(json.dumps(params, ensure_ascii=False), encoding="utf-8")
+    component_path = tmp_path / "schema.json"
+    component_path.write_text(json.dumps(schema, ensure_ascii=False), encoding="utf-8")
 
-    sources = LibrarySourceConfig(
-        component_path=str(component_path),
-        params_path=str(params_path),
-        source_format="json",
-    )
-    comps, prs = load_library_sources(sources)
-
-    assert comps[0].component_type == "button"
-    assert prs[0].param_name == "text"
+    components, _ = load_component_schema_json(component_path)
+    assert components[0].component_type == "button"
+    assert components[0].props_by_category["Data"][0].name == "text"

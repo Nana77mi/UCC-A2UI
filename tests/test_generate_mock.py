@@ -5,39 +5,32 @@ from pathlib import Path
 
 from ucc_a2ui.config import Config
 from ucc_a2ui.generator import generate_ui
-from ucc_a2ui.library import LibrarySourceConfig, build_whitelist, load_library_sources
+from ucc_a2ui.library import build_whitelist, load_component_schema_json
 
 
-def _write_json(component_path: Path, params_path: Path) -> None:
+def _write_json(component_path: Path) -> None:
     component_path.write_text(
         """
 {
+  "schema_version": "ucc-component-params@v0",
   "components": [
     {
-      "ComponentGroup": "基础",
-      "ComponentName_CN": "文本",
-      "ComponentName_EN": "Text",
-      "KeyParams": ["text"],
-      "MaterialLike_DefaultColors": "primary=#222222"
-    }
-  ]
-}
-""",
-        encoding="utf-8",
-    )
-    params_path.write_text(
-        """
-{
-  "params": [
-    {
-      "ComponentName": "Text",
-      "ParamCategory": "Data",
-      "ParamName": "text",
-      "ValueType": "string",
-      "EnumValues": "",
-      "DefaultValue": "",
-      "Required": "yes",
-      "Notes": ""
+      "type": "label",
+      "group": "基础组件",
+      "component_name": "Label",
+      "props_by_category": {
+        "Data": [
+          {
+            "name": "text",
+            "type": "string",
+            "enum": [],
+            "description": "显示文本",
+            "default": null,
+            "required": true,
+            "notes": ""
+          }
+        ]
+      }
     }
   ]
 }
@@ -47,17 +40,11 @@ def _write_json(component_path: Path, params_path: Path) -> None:
 
 
 def test_generate_mock(tmp_path: Path) -> None:
-    component_path = tmp_path / "components.json"
-    params_path = tmp_path / "params.json"
-    _write_json(component_path, params_path)
+    component_path = tmp_path / "schema.json"
+    _write_json(component_path)
 
-    sources = LibrarySourceConfig(
-        component_path=str(component_path),
-        params_path=str(params_path),
-        source_format="json",
-    )
-    components, params = load_library_sources(sources)
-    whitelist = build_whitelist(components, params)
+    components, _ = load_component_schema_json(component_path)
+    whitelist = build_whitelist(components)
 
     config_path = tmp_path / "config.yaml"
     config_path.write_text(

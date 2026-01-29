@@ -7,39 +7,32 @@ from ucc_a2ui.embed import build_embedder
 from ucc_a2ui.embed.chunker import chunk_documents_with_sources
 from ucc_a2ui.embed.index_faiss import IndexedChunk, build_faiss_index, save_faiss_index
 from ucc_a2ui.embed.search import search_index
-from ucc_a2ui.library import LibrarySourceConfig, build_whitelist, load_library_sources
+from ucc_a2ui.library import build_whitelist, load_component_schema_json
 
 
-def _write_json(component_path: Path, params_path: Path) -> None:
+def _write_json(component_path: Path) -> None:
     component_path.write_text(
         """
 {
+  "schema_version": "ucc-component-params@v0",
   "components": [
     {
-      "ComponentGroup": "基础",
-      "ComponentName_CN": "列表",
-      "ComponentName_EN": "List",
-      "KeyParams": ["items"],
-      "MaterialLike_DefaultColors": "primary=#000000"
-    }
-  ]
-}
-""",
-        encoding="utf-8",
-    )
-    params_path.write_text(
-        """
-{
-  "params": [
-    {
-      "ComponentName": "List",
-      "ParamCategory": "Data",
-      "ParamName": "items",
-      "ValueType": "array",
-      "EnumValues": "",
-      "DefaultValue": "",
-      "Required": "yes",
-      "Notes": ""
+      "type": "list",
+      "group": "基础组件",
+      "component_name": "List",
+      "props_by_category": {
+        "Data": [
+          {
+            "name": "items",
+            "type": "array",
+            "enum": [],
+            "description": "列表数据",
+            "default": null,
+            "required": true,
+            "notes": ""
+          }
+        ]
+      }
     }
   ]
 }
@@ -49,17 +42,11 @@ def _write_json(component_path: Path, params_path: Path) -> None:
 
 
 def test_sync_docgen_and_search(tmp_path: Path) -> None:
-    component_path = tmp_path / "components.json"
-    params_path = tmp_path / "params.json"
-    _write_json(component_path, params_path)
+    component_path = tmp_path / "schema.json"
+    _write_json(component_path)
 
-    sources = LibrarySourceConfig(
-        component_path=str(component_path),
-        params_path=str(params_path),
-        source_format="json",
-    )
-    components, params = load_library_sources(sources)
-    whitelist = build_whitelist(components, params)
+    components, _ = load_component_schema_json(component_path)
+    whitelist = build_whitelist(components)
 
     docs_dir = tmp_path / "docs"
     docs = generate_docs(docs_dir, whitelist)

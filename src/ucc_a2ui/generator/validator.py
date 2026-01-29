@@ -61,7 +61,7 @@ def _validate_node(
 
     allowed_props = set(component.key_params)
     if strict and component.strict_params:
-        allowed_props = {param.param_name for param in component.strict_params if param.param_name}
+        allowed_props = {param.name for param in component.strict_params if param.name}
 
     props = node.get("props", {})
     if isinstance(props, dict):

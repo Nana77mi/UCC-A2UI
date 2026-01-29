@@ -3,50 +3,43 @@ from __future__ import annotations
 from pathlib import Path
 
 from ucc_a2ui.generator.validator import validate_ir
-from ucc_a2ui.library import LibrarySourceConfig, build_whitelist, load_library_sources
+from ucc_a2ui.library import build_whitelist, load_component_schema_json
 
 
-def _write_json(component_path: Path, params_path: Path) -> None:
+def _write_json(component_path: Path) -> None:
     component_path.write_text(
         """
 {
+  "schema_version": "ucc-component-params@v0",
   "components": [
     {
-      "ComponentGroup": "基础",
-      "ComponentName_CN": "按钮",
-      "ComponentName_EN": "Button",
-      "KeyParams": ["text", "color"],
-      "MaterialLike_DefaultColors": "primary=#111111"
-    }
-  ]
-}
-""",
-        encoding="utf-8",
-    )
-
-    params_path.write_text(
-        """
-{
-  "params": [
-    {
-      "ComponentName": "Button",
-      "ParamCategory": "Style",
-      "ParamName": "text",
-      "ValueType": "string",
-      "EnumValues": "",
-      "DefaultValue": "",
-      "Required": "yes",
-      "Notes": ""
-    },
-    {
-      "ComponentName": "Button",
-      "ParamCategory": "Style",
-      "ParamName": "color",
-      "ValueType": "string",
-      "EnumValues": "",
-      "DefaultValue": "",
-      "Required": "no",
-      "Notes": ""
+      "type": "button",
+      "group": "基础组件",
+      "component_name": "Button",
+      "props_by_category": {
+        "Data": [
+          {
+            "name": "text",
+            "type": "string",
+            "enum": [],
+            "description": "按钮文本",
+            "default": null,
+            "required": true,
+            "notes": ""
+          }
+        ],
+        "Style": [
+          {
+            "name": "color",
+            "type": "string",
+            "enum": [],
+            "description": "按钮颜色",
+            "default": null,
+            "required": false,
+            "notes": ""
+          }
+        ]
+      }
     }
   ]
 }
@@ -56,16 +49,10 @@ def _write_json(component_path: Path, params_path: Path) -> None:
 
 
 def _load_whitelist(tmp_path: Path):
-    component_path = tmp_path / "components.json"
-    params_path = tmp_path / "params.json"
-    _write_json(component_path, params_path)
-    sources = LibrarySourceConfig(
-        component_path=str(component_path),
-        params_path=str(params_path),
-        source_format="json",
-    )
-    components, params = load_library_sources(sources)
-    return build_whitelist(components, params)
+    component_path = tmp_path / "schema.json"
+    _write_json(component_path)
+    components, _ = load_component_schema_json(component_path)
+    return build_whitelist(components)
 
 
 def test_validator_schema_pass(tmp_path: Path) -> None:
