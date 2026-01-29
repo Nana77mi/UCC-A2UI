@@ -83,8 +83,27 @@ def generate_ui(
         (out_dir / "ui_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         return {}, report
 
+    if isinstance(data, dict) and "ir" not in data and "IR" in data:
+        data = {**data, "ir": data.get("IR")}
+    if isinstance(data, dict) and "plan" not in data and "Plan" in data:
+        data = {**data, "plan": data.get("Plan")}
     plan = data.get("plan") if isinstance(data, dict) else None
     ir = data.get("ir") if isinstance(data, dict) else data
+    if ir is None:
+        raw_path.write_text(response.content, encoding="utf-8")
+        report = {
+            "SchemaPass": False,
+            "ComponentWhitelistPass": False,
+            "PropsWhitelistPass": False,
+            "EventsWhitelistPass": False,
+            "BindingSanity": False,
+            "ThemePass": False,
+            "errors": [{"code": "E_NULL_IR", "path": "$.ir", "message": "LLM returned null IR"}],
+        }
+        (out_dir / "ui_report.json").write_text(
+            json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        return {}, report
 
     if save_plan and plan is not None:
         (out_dir / "plan.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
