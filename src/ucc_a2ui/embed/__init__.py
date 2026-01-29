@@ -25,7 +25,10 @@ class FallbackEmbedder(EmbedderBase):
 
 def build_embedder(config: Dict[str, Any]) -> EmbedderBase:
     mode = config.get("mode", "mock")
-    allow_fallback = bool(config.get("allow_fallback", False))
+    if "allow_fallback" in config:
+        allow_fallback = bool(config.get("allow_fallback"))
+    else:
+        allow_fallback = mode in {"openai_compatible", "dashscope_qwen"}
     if mode == "openai_compatible":
         primary = OpenAICompatibleEmbedder(
             base_url=config.get("base_url", ""),
