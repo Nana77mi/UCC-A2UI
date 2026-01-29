@@ -38,6 +38,6 @@ def build_prompt_messages(
     )
     return [
         {"role": "system", "content": system_message},
-        {"role": "context", "content": context_message},
+        {"role": "system", "content": context_message},
         {"role": "user", "content": user_message},
     ]
