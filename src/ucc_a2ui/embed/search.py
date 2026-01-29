@@ -25,7 +25,7 @@ def search_index(index_dir: str, query: str, embedder: EmbedderBase, top_k: int 
     for rank, idx in enumerate(indices[0]):
         if idx < 0 or idx >= len(faiss_index.chunks):
             continue
-        chunk = faiss_index.chunks[idx]
+        chunk = faiss_index.chunks.get(idx)
         score = float(distances[0][rank])
         results.append(SearchResult(score=score, text=chunk.text, source=chunk.source))
     return results
