@@ -34,6 +34,9 @@ def build_embedder(config: Dict[str, Any]) -> EmbedderBase:
             base_url=config.get("base_url", ""),
             api_key=config.get("api_key", ""),
             model=config.get("model", ""),
+            timeout_s=int(config.get("timeout_s", 60)),
+            retries=int(config.get("retries", 2)),
+            retry_backoff_s=float(config.get("retry_backoff_s", 1.0)),
         )
         if allow_fallback:
             return FallbackEmbedder(primary, MockEmbedder(), allow_fallback=True)
