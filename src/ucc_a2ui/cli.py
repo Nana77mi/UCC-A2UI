@@ -31,16 +31,19 @@ def _load_whitelist(config: Config):
 
 
 def _run_sync(config: Config) -> int:
+    print("[sync] loading library and exporting whitelist")
     whitelist = _load_whitelist(config)
     output_path = config.get("library", "output_path", default="library.json")
     export_library(output_path, whitelist)
 
+    print("[sync] generating docs")
     docs_dir = config.get("docs", "output_dir", default="docs/components")
     docs = generate_docs(docs_dir, whitelist)
 
     embed_config = config.get_resolved("embed", default={})
     embedder = build_embedder(embed_config)
 
+    print("[sync] chunking docs")
     documents = [(Path(doc).read_text(encoding="utf-8"), str(doc)) for doc in docs]
     chunk_size = int(embed_config.get("chunk_size", 800))
     chunk_overlap = int(embed_config.get("chunk_overlap", 120))
@@ -71,6 +74,12 @@ def _run_sync(config: Config) -> int:
         source for source in current_sources if existing_doc_hashes.get(source) not in (None, doc_hashes[source])
     }
     new_sources = current_sources - existing_sources
+    print(
+        "[sync] diff status:",
+        f"new={len(new_sources)}",
+        f"changed={len(changed_sources)}",
+        f"removed={len(removed_sources)}",
+    )
 
     def build_chunks(target_sources: set[str]) -> list[IndexedChunk]:
         chunks: list[IndexedChunk] = []
@@ -90,25 +99,30 @@ def _run_sync(config: Config) -> int:
     index_status = "rebuilt"
 
     if removed_sources or changed_sources:
+        print("[sync] rebuilding full index")
         indexed_chunks = build_chunks(current_sources)
         for start in range(0, len(indexed_chunks), batch_size):
             batch = indexed_chunks[start : start + batch_size]
+            print(f"[sync] embedding batch {start + 1}-{start + len(batch)} / {len(indexed_chunks)}")
             vectors = embedder.embed([chunk.text for chunk in batch]).vectors
             if index is None:
                 index = create_empty_index(len(vectors[0]))
             add_vectors(index, vectors)
     elif new_sources:
+        print("[sync] appending new docs to index")
         indexed_chunks = existing_chunks + build_chunks(new_sources)
         if existing_chunks:
             index = existing_index
         for start in range(len(existing_chunks), len(indexed_chunks), batch_size):
             batch = indexed_chunks[start : start + batch_size]
+            print(f"[sync] embedding batch {start + 1}-{start + len(batch)} / {len(indexed_chunks)}")
             vectors = embedder.embed([chunk.text for chunk in batch]).vectors
             if index is None:
                 index = create_empty_index(len(vectors[0]))
             add_vectors(index, vectors)
         index_status = "appended"
     else:
+        print("[sync] no doc changes detected; index unchanged")
         indexed_chunks = existing_chunks
         index_status = "unchanged"
         index = existing_index
@@ -116,6 +130,7 @@ def _run_sync(config: Config) -> int:
     if index is None:
         raise ValueError("No chunks to index")
     save_faiss_index_parts(index_dir, index, indexed_chunks)
+    print("[sync] index saved")
 
     summary = {
         "components": len(whitelist.components),
