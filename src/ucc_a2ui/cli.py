@@ -17,6 +17,7 @@ from .embed.chunker import chunk_text
 from .embed.index_faiss import (
     IndexedChunk,
     add_vectors,
+    count_chunks,
     create_empty_index,
     load_faiss_index,
     save_faiss_index_parts,
@@ -82,7 +83,7 @@ def _run_sync(config: Config) -> int:
     if index_path.exists() and chunks_path.exists():
         faiss_index = load_faiss_index(index_dir)
         existing_index = faiss_index.index
-        existing_chunk_count = len(faiss_index.chunks)
+        existing_chunk_count = count_chunks(chunks_path)
         with chunks_path.open("r", encoding="utf-8") as handle:
             for line in handle:
                 payload = json.loads(line)
@@ -160,8 +161,9 @@ def _run_sync(config: Config) -> int:
         total_vectors = 0
         batch_num = 0
         offsets: list[int] = []
+        current_offset = 0
         chunks_path.parent.mkdir(parents=True, exist_ok=True)
-        with chunks_path.open("wb") as chunk_handle:
+        with chunks_path.open("w", encoding="utf-8") as chunk_handle:
             for batch in build_chunks_stream(current_sources, chunk_size, chunk_overlap, batch_size):
                 batch_num += 1
                 texts = [chunk.text for chunk in batch]
@@ -171,10 +173,16 @@ def _run_sync(config: Config) -> int:
                     index = create_empty_index(dim)
                 add_vectors(index, vectors)
                 for chunk in batch:
-                    offsets.append(chunk_handle.tell())
-                    chunk_handle.write(
-                        (json.dumps(chunk.__dict__, ensure_ascii=False) + "\n").encode("utf-8")
-                    )
+                    chunk_record = {
+                        "text": chunk.text,
+                        "source": chunk.source,
+                        "doc_hash": chunk.doc_hash,
+                        "chunk_hash": chunk.chunk_hash,
+                    }
+                    line = json.dumps(chunk_record, ensure_ascii=False) + "\n"
+                    offsets.append(current_offset)
+                    chunk_handle.write(line)
+                    current_offset += len(line.encode("utf-8"))
                 total_vectors += len(batch)
                 total_chunks += len(batch)
                 print(
@@ -198,8 +206,9 @@ def _run_sync(config: Config) -> int:
         total_chunks = existing_chunk_count
         batch_num = 0
         offsets = _load_offsets()
+        current_offset = chunks_path.stat().st_size if chunks_path.exists() else 0
         chunks_path.parent.mkdir(parents=True, exist_ok=True)
-        with chunks_path.open("ab") as chunk_handle:
+        with chunks_path.open("a", encoding="utf-8") as chunk_handle:
             for batch in build_chunks_stream(new_sources, chunk_size, chunk_overlap, batch_size):
                 batch_num += 1
                 texts = [chunk.text for chunk in batch]
@@ -209,10 +218,16 @@ def _run_sync(config: Config) -> int:
                     index = create_empty_index(dim)
                 add_vectors(index, vectors)
                 for chunk in batch:
-                    offsets.append(chunk_handle.tell())
-                    chunk_handle.write(
-                        (json.dumps(chunk.__dict__, ensure_ascii=False) + "\n").encode("utf-8")
-                    )
+                    chunk_record = {
+                        "text": chunk.text,
+                        "source": chunk.source,
+                        "doc_hash": chunk.doc_hash,
+                        "chunk_hash": chunk.chunk_hash,
+                    }
+                    line = json.dumps(chunk_record, ensure_ascii=False) + "\n"
+                    offsets.append(current_offset)
+                    chunk_handle.write(line)
+                    current_offset += len(line.encode("utf-8"))
                 total_vectors += len(batch)
                 total_chunks += len(batch)
                 print(
