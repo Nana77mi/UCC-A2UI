@@ -1,0 +1,38 @@
+library:
+  component_path: data/ucc_component_params.json
+  strict_params: false
+  output_path: library.json
+
+docs:
+  output_dir: docs/components
+
+embed:
+  mode: mock  # mock | openai_compatible | dashscope_qwen
+  model: mock-embedding
+  base_url: http://localhost:11434/v1
+  api_key: ENV:OPENAI_API_KEY
+  index_dir: index/ucc_docs
+  chunk_size: 800
+  chunk_overlap: 120
+  batch_size: 64
+
+llm:
+  mode: mock  # mock | openai_compatible | dashscope_qwen
+  base_url: http://localhost:11434/v1
+  api_key: ENV:OPENAI_API_KEY
+  model: qwen2.5-7b-instruct
+  temperature: 0.2
+  max_tokens: 2000
+  timeout_s: 60
+  retries: 2
+
+generator:
+  save_plan_default: false
+  default_width: 1366
+  default_height: 768
+  default_layout: vertical
+  default_gap: 12
+  default_padding: 16
+
+output:
+  dir: out

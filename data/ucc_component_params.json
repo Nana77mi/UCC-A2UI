@@ -1,0 +1,288 @@
+{
+  "schema_version": "ucc-component-params@v0",
+  "source": {
+    "file": "UCC_Component_Params_v0.xlsx",
+    "sheet": "UCC_Component_Params_v0"
+  },
+  "components": [
+    {
+      "type": "button",
+      "group": "基础组件",
+      "component_name": "Button",
+      "props_by_category": {
+        "Data": [
+          {
+            "name": "text",
+            "type": "string",
+            "enum": [],
+            "description": "按钮文本",
+            "default": null,
+            "required": true,
+            "notes": ""
+          }
+        ],
+        "Style": [
+          {
+            "name": "type",
+            "type": "enum",
+            "enum": [
+              "primary",
+              "secondary",
+              "danger",
+              "text"
+            ],
+            "description": "按钮类型",
+            "default": "primary",
+            "required": false,
+            "notes": ""
+          }
+        ],
+        "Events": [
+          {
+            "name": "onClick",
+            "type": "function",
+            "enum": [],
+            "description": "点击事件",
+            "default": null,
+            "required": false,
+            "notes": ""
+          }
+        ]
+      }
+    },
+    {
+      "type": "container",
+      "group": "基础组件",
+      "component_name": "Container",
+      "props_by_category": {
+        "Layout": [
+          {
+            "name": "x",
+            "type": "number",
+            "enum": [],
+            "description": "横坐标",
+            "default": "0",
+            "required": false,
+            "notes": "absolute 布局时使用"
+          },
+          {
+            "name": "y",
+            "type": "number",
+            "enum": [],
+            "description": "纵坐标",
+            "default": "0",
+            "required": false,
+            "notes": "absolute 布局时使用"
+          },
+          {
+            "name": "width",
+            "type": "number",
+            "enum": [],
+            "description": "宽度",
+            "default": "auto",
+            "required": false,
+            "notes": ""
+          },
+          {
+            "name": "height",
+            "type": "number",
+            "enum": [],
+            "description": "高度",
+            "default": "auto",
+            "required": false,
+            "notes": ""
+          },
+          {
+            "name": "layout",
+            "type": "enum",
+            "enum": [
+              "absolute",
+              "vertical",
+              "horizontal",
+              "grid"
+            ],
+            "description": "布局方式",
+            "default": "vertical",
+            "required": false,
+            "notes": ""
+          },
+          {
+            "name": "gap",
+            "type": "number",
+            "enum": [],
+            "description": "子组件间距",
+            "default": "0",
+            "required": false,
+            "notes": ""
+          }
+        ],
+        "Style": [
+          {
+            "name": "backgroundColor",
+            "type": "string",
+            "enum": [],
+            "description": "背景色",
+            "default": "transparent",
+            "required": false,
+            "notes": ""
+          }
+        ],
+        "Behavior": [
+          {
+            "name": "visible",
+            "type": "boolean",
+            "enum": [],
+            "description": "是否可见",
+            "default": "true",
+            "required": false,
+            "notes": ""
+          }
+        ]
+      }
+    },
+    {
+      "type": "image",
+      "group": "基础组件",
+      "component_name": "Image",
+      "props_by_category": {
+        "Data": [
+          {
+            "name": "src",
+            "type": "string",
+            "enum": [],
+            "description": "图片地址",
+            "default": null,
+            "required": true,
+            "notes": ""
+          }
+        ]
+      }
+    },
+    {
+      "type": "label",
+      "group": "基础组件",
+      "component_name": "Label",
+      "props_by_category": {
+        "Data": [
+          {
+            "name": "text",
+            "type": "string",
+            "enum": [],
+            "description": "显示文本",
+            "default": null,
+            "required": true,
+            "notes": ""
+          }
+        ],
+        "Style": [
+          {
+            "name": "fontSize",
+            "type": "number",
+            "enum": [],
+            "description": "字号",
+            "default": "14",
+            "required": false,
+            "notes": ""
+          },
+          {
+            "name": "color",
+            "type": "string",
+            "enum": [],
+            "description": "文字颜色",
+            "default": "#000",
+            "required": false,
+            "notes": ""
+          }
+        ]
+      }
+    },
+    {
+      "type": "textbox",
+      "group": "基础组件",
+      "component_name": "TextBox",
+      "props_by_category": {
+        "Data": [
+          {
+            "name": "value",
+            "type": "string",
+            "enum": [],
+            "description": "当前值",
+            "default": null,
+            "required": false,
+            "notes": ""
+          }
+        ],
+        "Behavior": [
+          {
+            "name": "multiline",
+            "type": "boolean",
+            "enum": [],
+            "description": "是否多行",
+            "default": "false",
+            "required": false,
+            "notes": ""
+          }
+        ],
+        "Events": [
+          {
+            "name": "onChange",
+            "type": "function",
+            "enum": [],
+            "description": "值变化事件",
+            "default": null,
+            "required": false,
+            "notes": ""
+          }
+        ]
+      }
+    },
+    {
+      "type": "variable",
+      "group": "基础组件",
+      "component_name": "Variable",
+      "props_by_category": {
+        "Data": [
+          {
+            "name": "name",
+            "type": "string",
+            "enum": [],
+            "description": "变量名",
+            "default": null,
+            "required": true,
+            "notes": "全局唯一"
+          },
+          {
+            "name": "type",
+            "type": "enum",
+            "enum": [
+              "number",
+              "string",
+              "boolean",
+              "object",
+              "array"
+            ],
+            "description": "变量类型",
+            "default": "string",
+            "required": true,
+            "notes": ""
+          }
+        ],
+        "Advanced": [
+          {
+            "name": "scope",
+            "type": "enum",
+            "enum": [
+              "global",
+              "page",
+              "local"
+            ],
+            "description": "作用域",
+            "default": "page",
+            "required": false,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  ]
+}
