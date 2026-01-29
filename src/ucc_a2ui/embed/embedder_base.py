@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
+from typing import Sequence
 
 
 @dataclass
 class EmbeddingResult:
-    vectors: List[List[float]]
+    vectors: Sequence[Sequence[float]]
 
 
 class EmbedderBase:
-    def embed(self, texts: List[str]) -> EmbeddingResult:
+    def embed(self, texts: list[str]) -> EmbeddingResult:
         raise NotImplementedError
