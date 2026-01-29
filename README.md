@@ -102,6 +102,7 @@ embed:
   api_key: ENV:OPENAI_API_KEY
   model: bge-large-zh
   index_dir: index/ucc_docs
+  batch_size: 64
 ```
 
 ---

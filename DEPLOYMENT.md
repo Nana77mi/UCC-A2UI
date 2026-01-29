@@ -45,6 +45,8 @@ ucc-a2ui sync --config config.yaml
 2. 生成 `docs/components/*.md`
 3. 构建向量索引 `index/*`
 
+如需降低内存占用，可在 `config.yaml` 的 `embed.batch_size` 中调小批次大小。
+
 ---
 
 ## 4. 运行与使用

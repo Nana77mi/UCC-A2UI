@@ -9,7 +9,7 @@ from .config import Config
 from .docs import generate_docs
 from .embed import build_embedder
 from .embed.chunker import chunk_documents_with_sources
-from .embed.index_faiss import IndexedChunk, build_faiss_index, save_faiss_index
+from .embed.index_faiss import IndexedChunk, add_vectors, create_empty_index, save_faiss_index_parts
 from .embed.search import search_index
 from .generator import generate_ui, validate_ir
 from .library import build_whitelist, export_library, load_component_schema_json
@@ -40,17 +40,26 @@ def _run_sync(config: Config) -> int:
         chunk_size=int(embed_config.get("chunk_size", 800)),
         chunk_overlap=int(embed_config.get("chunk_overlap", 120)),
     )
-    chunks = [chunk for chunk, _ in chunk_pairs]
-    vectors = embedder.embed(chunks).vectors
-    indexed_chunks = [IndexedChunk(text=chunk, source=source) for chunk, source in chunk_pairs]
-    faiss_index = build_faiss_index(vectors, indexed_chunks)
+    batch_size = int(embed_config.get("batch_size", 64))
+    indexed_chunks: list[IndexedChunk] = []
+    index = None
+    for start in range(0, len(chunk_pairs), batch_size):
+        batch = chunk_pairs[start : start + batch_size]
+        chunks = [chunk for chunk, _ in batch]
+        vectors = embedder.embed(chunks).vectors
+        if index is None:
+            index = create_empty_index(len(vectors[0]))
+        add_vectors(index, vectors)
+        indexed_chunks.extend(IndexedChunk(text=chunk, source=source) for chunk, source in batch)
+    if index is None:
+        raise ValueError("No chunks to index")
     index_dir = embed_config.get("index_dir", "index/ucc_docs")
-    save_faiss_index(index_dir, faiss_index)
+    save_faiss_index_parts(index_dir, index, indexed_chunks)
 
     summary = {
         "components": len(whitelist.components),
         "docs": len(docs),
-        "chunks": len(chunks),
+        "chunks": len(indexed_chunks),
         "index_dir": index_dir,
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
