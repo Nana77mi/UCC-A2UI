@@ -17,6 +17,10 @@ class DashScopeQwenLLM(LLMClientBase):
         self.base_url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
 
     def complete(self, messages: List[dict]) -> LLMResponse:
+        if not self.api_key:
+            raise ValueError("DashScope API key is required. Set llm.api_key in config.yaml.")
+        if not self.model:
+            raise ValueError("DashScope model is required. Set llm.model in config.yaml.")
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}",
@@ -30,7 +34,11 @@ class DashScopeQwenLLM(LLMClientBase):
             },
         }
         response = requests.post(self.base_url, headers=headers, json=payload, timeout=self.timeout_s)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            detail = response.text.strip()
+            raise requests.HTTPError(f"{exc} - {detail}") from exc
         data = response.json()
         content = data.get("output", {}).get("text", "")
         return LLMResponse(content=content)
