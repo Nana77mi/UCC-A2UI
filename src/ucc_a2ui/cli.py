@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import hashlib
 import json
 import sys
 from pathlib import Path
+from typing import Iterator
+
+import numpy as np
 
 from .config import Config
 from .docs import generate_docs
@@ -20,6 +24,11 @@ from .embed.index_faiss import (
 from .embed.search import search_index
 from .generator import generate_ui, validate_ir
 from .library import build_whitelist, export_library, load_component_schema_json
+
+try:
+    import psutil
+except ImportError:  # pragma: no cover - optional dependency
+    psutil = None
 
 
 def _load_whitelist(config: Config):
@@ -91,17 +100,32 @@ def _run_sync(config: Config) -> int:
         f"removed={len(removed_sources)}",
     )
 
-    def build_chunks(target_sources: set[str]) -> list[IndexedChunk]:
-        chunks: list[IndexedChunk] = []
+    def build_chunks_stream(
+        target_sources: set[str],
+        chunk_size: int,
+        chunk_overlap: int,
+        batch_size: int,
+    ) -> Iterator[list[IndexedChunk]]:
+        batch: list[IndexedChunk] = []
         for source in target_sources:
             text = Path(source).read_text(encoding="utf-8")
             doc_hash = doc_hashes[source]
             for chunk in chunk_text(text, chunk_size, chunk_overlap):
                 chunk_hash = hashlib.sha256(chunk.encode("utf-8")).hexdigest()
-                chunks.append(
+                batch.append(
                     IndexedChunk(text=chunk, source=source, doc_hash=doc_hash, chunk_hash=chunk_hash)
                 )
-        return chunks
+                if len(batch) >= batch_size:
+                    yield batch
+                    batch = []
+        if batch:
+            yield batch
+
+    def _format_rss_mb() -> str:
+        if psutil is None:
+            return "rss=unavailable"
+        rss_mb = psutil.Process().memory_info().rss / (1024 * 1024)
+        return f"rss={rss_mb:.1f}MB"
 
     indexed_chunks: list[IndexedChunk] = []
     index = None
@@ -109,27 +133,59 @@ def _run_sync(config: Config) -> int:
 
     if removed_sources or changed_sources:
         print("[sync] rebuilding full index")
-        indexed_chunks = build_chunks(current_sources)
-        for start in range(0, len(indexed_chunks), batch_size):
-            batch = indexed_chunks[start : start + batch_size]
-            print(f"[sync] embedding batch {start + 1}-{start + len(batch)} / {len(indexed_chunks)}")
-            vectors = embedder.embed([chunk.text for chunk in batch]).vectors
+        # Releasing vectors alone isn't enough; streaming chunks avoids full-text accumulation.
+        # Tune batch_size/chunk_size/chunk_overlap in config to further reduce peak memory.
+        total_vectors = 0
+        batch_num = 0
+        for batch in build_chunks_stream(current_sources, chunk_size, chunk_overlap, batch_size):
+            batch_num += 1
+            indexed_chunks.extend(batch)
+            texts = [chunk.text for chunk in batch]
+            vectors = np.asarray(embedder.embed(texts).vectors, dtype="float32")
             if index is None:
-                index = create_empty_index(len(vectors[0]))
+                dim = int(vectors.shape[1]) if vectors.ndim > 1 else len(vectors[0])
+                index = create_empty_index(dim)
             add_vectors(index, vectors)
+            total_vectors += len(batch)
+            print(
+                "[sync] embedding batch",
+                f"#{batch_num}",
+                f"size={len(batch)}",
+                f"total_vectors={total_vectors}",
+                _format_rss_mb(),
+            )
+            del vectors
+            del texts
+            del batch
+            gc.collect()
     elif new_sources:
         print("[sync] appending new docs to index")
         indexed_chunks = existing_chunks
-        indexed_chunks.extend(build_chunks(new_sources))
         if existing_chunks:
             index = existing_index
-        for start in range(len(existing_chunks), len(indexed_chunks), batch_size):
-            batch = indexed_chunks[start : start + batch_size]
-            print(f"[sync] embedding batch {start + 1}-{start + len(batch)} / {len(indexed_chunks)}")
-            vectors = embedder.embed([chunk.text for chunk in batch]).vectors
+        total_vectors = len(existing_chunks)
+        batch_num = 0
+        for batch in build_chunks_stream(new_sources, chunk_size, chunk_overlap, batch_size):
+            batch_num += 1
+            indexed_chunks.extend(batch)
+            texts = [chunk.text for chunk in batch]
+            vectors = np.asarray(embedder.embed(texts).vectors, dtype="float32")
             if index is None:
-                index = create_empty_index(len(vectors[0]))
+                dim = int(vectors.shape[1]) if vectors.ndim > 1 else len(vectors[0])
+                index = create_empty_index(dim)
             add_vectors(index, vectors)
+            total_vectors += len(batch)
+            print(
+                "[sync] embedding batch",
+                f"#{batch_num}",
+                f"size={len(batch)}",
+                f"total_vectors={total_vectors}",
+                _format_rss_mb(),
+            )
+            del vectors
+            del texts
+            del batch
+            gc.collect()
         index_status = "appended"
     else:
         print("[sync] no doc changes detected; index unchanged")
