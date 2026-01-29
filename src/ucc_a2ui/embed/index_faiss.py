@@ -93,6 +93,22 @@ def add_vectors(index: faiss.Index, vectors: Sequence[Sequence[float]] | np.ndar
     index.add(arr)
 
 
+def count_chunks(chunks_path: str | Path) -> int:
+    chunks_path = Path(chunks_path)
+    if not chunks_path.exists():
+        return 0
+    count = 0
+    with chunks_path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            count += block.count(b"\n")
+    return count
+
+
+def open_chunk_store(index_dir: str | Path) -> ChunkStore:
+    index_dir = Path(index_dir)
+    return ChunkStore(index_dir / "chunks.jsonl", index_dir / "chunks.offsets.npy")
+
+
 def save_faiss_index_parts(index_dir: str | Path, index: faiss.Index) -> None:
     index_dir = Path(index_dir)
     index_dir.mkdir(parents=True, exist_ok=True)
@@ -108,5 +124,5 @@ def save_faiss_index(index_dir: str | Path, faiss_index: FaissIndex) -> None:
 def load_faiss_index(index_dir: str | Path) -> FaissIndex:
     index_dir = Path(index_dir)
     index = faiss.read_index(str(index_dir / "index.faiss"))
-    chunk_store = ChunkStore(index_dir / "chunks.jsonl", index_dir / "chunks.offsets.npy")
+    chunk_store = open_chunk_store(index_dir)
     return FaissIndex(index=index, chunks=chunk_store)
