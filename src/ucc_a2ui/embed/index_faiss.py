@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import List, Sequence
 
 import faiss
 import numpy as np
@@ -23,12 +23,14 @@ class FaissIndex:
     chunks: List[IndexedChunk]
 
 
-def build_faiss_index(vectors: List[List[float]], chunks: List[IndexedChunk]) -> FaissIndex:
+def build_faiss_index(
+    vectors: Sequence[Sequence[float]] | np.ndarray, chunks: List[IndexedChunk]
+) -> FaissIndex:
     if not vectors:
         raise ValueError("No vectors to index")
     dim = len(vectors[0])
     index = faiss.IndexFlatL2(dim)
-    arr = np.array(vectors, dtype="float32")
+    arr = np.asarray(vectors, dtype="float32")
     index.add(arr)
     return FaissIndex(index=index, chunks=chunks)
 
@@ -37,10 +39,10 @@ def create_empty_index(dim: int) -> faiss.Index:
     return faiss.IndexFlatL2(dim)
 
 
-def add_vectors(index: faiss.Index, vectors: List[List[float]]) -> None:
+def add_vectors(index: faiss.Index, vectors: Sequence[Sequence[float]] | np.ndarray) -> None:
     if not vectors:
         return
-    arr = np.array(vectors, dtype="float32")
+    arr = np.asarray(vectors, dtype="float32")
     index.add(arr)
 
 
