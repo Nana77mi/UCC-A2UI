@@ -42,9 +42,18 @@ def _run_sync(config: Config) -> int:
 
     embed_config = config.get_resolved("embed", default={})
     embedder = build_embedder(embed_config)
+    embed_mode = str(embed_config.get("mode", "mock"))
+    embed_base_url = str(embed_config.get("base_url", ""))
+    embed_model = str(embed_config.get("model", ""))
+    if embed_mode == "openai_compatible" and embed_base_url.startswith("http://localhost:11434"):
+        if "bge-m3" in embed_model:
+            print(
+                "[sync] warning: local Ollama embedding model 'bge-m3' is large and may OOM; "
+                "consider a smaller embedding model or a remote embedding service."
+            )
 
     print("[sync] chunking docs")
-    documents = [(Path(doc).read_text(encoding="utf-8"), str(doc)) for doc in docs]
+    doc_sources = [str(doc) for doc in docs]
     chunk_size = int(embed_config.get("chunk_size", 800))
     chunk_overlap = int(embed_config.get("chunk_overlap", 120))
     batch_size = int(embed_config.get("batch_size", 64))
@@ -52,9 +61,10 @@ def _run_sync(config: Config) -> int:
     index_path = Path(index_dir) / "index.faiss"
     meta_path = Path(index_dir) / "meta.json"
 
-    doc_hashes = {
-        source: hashlib.sha256(text.encode("utf-8")).hexdigest() for text, source in documents
-    }
+    doc_hashes = {}
+    for source in doc_sources:
+        text = Path(source).read_text(encoding="utf-8")
+        doc_hashes[source] = hashlib.sha256(text.encode("utf-8")).hexdigest()
 
     existing_chunks: list[IndexedChunk] = []
     existing_doc_hashes: dict[str, str] = {}
@@ -83,9 +93,8 @@ def _run_sync(config: Config) -> int:
 
     def build_chunks(target_sources: set[str]) -> list[IndexedChunk]:
         chunks: list[IndexedChunk] = []
-        for text, source in documents:
-            if source not in target_sources:
-                continue
+        for source in target_sources:
+            text = Path(source).read_text(encoding="utf-8")
             doc_hash = doc_hashes[source]
             for chunk in chunk_text(text, chunk_size, chunk_overlap):
                 chunk_hash = hashlib.sha256(chunk.encode("utf-8")).hexdigest()
