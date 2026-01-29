@@ -12,7 +12,7 @@ import numpy as np
 
 from .config import Config
 from .docs import generate_docs
-from .embed import build_embedder
+from .embeddings import build_embedding_client
 from .embed.chunker import chunk_text
 from .embed.index_faiss import (
     IndexedChunk,
@@ -51,11 +51,15 @@ def _run_sync(config: Config) -> int:
     docs = generate_docs(docs_dir, whitelist)
 
     embed_config = config.get_resolved("embed", default={})
-    embedder = build_embedder(embed_config)
-    embed_mode = str(embed_config.get("mode", "mock"))
+    embedder = build_embedding_client(embed_config)
+    embed_backend = str(embed_config.get("backend") or embed_config.get("mode") or "mock").lower()
+    if embed_backend == "openai_compatible":
+        embed_backend = "ollama"
+    if embed_backend == "dashscope_qwen":
+        embed_backend = "qwen"
     embed_base_url = str(embed_config.get("base_url", ""))
     embed_model = str(embed_config.get("model", ""))
-    if embed_mode == "openai_compatible" and embed_base_url.startswith("http://localhost:11434"):
+    if embed_backend == "ollama" and embed_base_url.startswith("http://localhost:11434"):
         if "bge-m3" in embed_model:
             print(
                 "[sync] warning: local Ollama embedding model 'bge-m3' is large and may OOM; "
@@ -66,7 +70,7 @@ def _run_sync(config: Config) -> int:
     doc_sources = [str(doc) for doc in docs]
     chunk_size = int(embed_config.get("chunk_size", 800))
     chunk_overlap = int(embed_config.get("chunk_overlap", 120))
-    batch_size = int(embed_config.get("batch_size", 64))
+    batch_size = int(embed_config.get("batch_size", 8))
     index_dir = embed_config.get("index_dir", "index/ucc_docs")
     index_path = Path(index_dir) / "index.faiss"
     chunks_path = Path(index_dir) / "chunks.jsonl"
@@ -167,7 +171,7 @@ def _run_sync(config: Config) -> int:
             for batch in build_chunks_stream(current_sources, chunk_size, chunk_overlap, batch_size):
                 batch_num += 1
                 texts = [chunk.text for chunk in batch]
-                vectors = np.asarray(embedder.embed(texts).vectors, dtype="float32")
+                vectors = embedder.embed_texts(texts)
                 if index is None:
                     dim = int(vectors.shape[1]) if vectors.ndim > 1 else len(vectors[0])
                     index = create_empty_index(dim)
@@ -212,7 +216,7 @@ def _run_sync(config: Config) -> int:
             for batch in build_chunks_stream(new_sources, chunk_size, chunk_overlap, batch_size):
                 batch_num += 1
                 texts = [chunk.text for chunk in batch]
-                vectors = np.asarray(embedder.embed(texts).vectors, dtype="float32")
+                vectors = embedder.embed_texts(texts)
                 if index is None:
                     dim = int(vectors.shape[1]) if vectors.ndim > 1 else len(vectors[0])
                     index = create_empty_index(dim)
@@ -294,7 +298,7 @@ def _run_validate(args: argparse.Namespace, config: Config) -> int:
 
 def _run_search(args: argparse.Namespace, config: Config) -> int:
     embed_config = config.get_resolved("embed", default={})
-    embedder = build_embedder(embed_config)
+    embedder = build_embedding_client(embed_config)
     index_dir = embed_config.get("index_dir", "index/ucc_docs")
     results = search_index(index_dir, args.query, embedder, top_k=args.k)
     payload = [result.__dict__ for result in results]
