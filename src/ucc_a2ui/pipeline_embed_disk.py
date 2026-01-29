@@ -403,6 +403,12 @@ def build_index_from_disk(
         raise ValueError("Invalid embedding dimension in chunks.jsonl")
 
     metric = faiss.METRIC_INNER_PRODUCT if normalize else faiss.METRIC_L2
+    if index_type == "ivfpq" and total_vectors < nlist:
+        print(
+            f"[index] warning: total_vectors={total_vectors} < nlist={nlist}; "
+            "falling back to flat index."
+        )
+        index_type = "flat"
     if index_type == "flat":
         if normalize:
             index = faiss.IndexFlatIP(dim)
