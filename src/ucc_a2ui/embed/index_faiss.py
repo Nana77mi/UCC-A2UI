@@ -87,9 +87,17 @@ def create_empty_index(dim: int) -> faiss.Index:
 
 
 def add_vectors(index: faiss.Index, vectors: Sequence[Sequence[float]] | np.ndarray) -> None:
-    if not vectors:
-        return
-    arr = np.asarray(vectors, dtype="float32")
+    if isinstance(vectors, np.ndarray):
+        if vectors.size == 0:
+            return
+        if vectors.dtype != np.float32:
+            arr = vectors.astype(np.float32, copy=False)
+        else:
+            arr = vectors
+    else:
+        if not vectors:
+            return
+        arr = np.asarray(vectors, dtype=np.float32)
     index.add(arr)
 
 
