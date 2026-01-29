@@ -13,10 +13,9 @@ class MockEmbedder(EmbedderBase):
         self.dim = dim
 
     def embed(self, texts: List[str]) -> EmbeddingResult:
-        vectors = []
-        for text in texts:
+        vectors = np.empty((len(texts), self.dim), dtype="float32")
+        for idx, text in enumerate(texts):
             seed = int(hashlib.sha256(text.encode("utf-8")).hexdigest(), 16) % (2**32)
             rng = np.random.default_rng(seed)
-            vector = rng.standard_normal(self.dim).astype("float32")
-            vectors.append(vector.tolist())
+            vectors[idx] = rng.standard_normal(self.dim).astype("float32")
         return EmbeddingResult(vectors=vectors)

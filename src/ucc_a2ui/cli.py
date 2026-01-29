@@ -110,7 +110,8 @@ def _run_sync(config: Config) -> int:
             add_vectors(index, vectors)
     elif new_sources:
         print("[sync] appending new docs to index")
-        indexed_chunks = existing_chunks + build_chunks(new_sources)
+        indexed_chunks = existing_chunks
+        indexed_chunks.extend(build_chunks(new_sources))
         if existing_chunks:
             index = existing_index
         for start in range(len(existing_chunks), len(indexed_chunks), batch_size):
