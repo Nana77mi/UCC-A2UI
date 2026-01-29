@@ -90,24 +90,32 @@ def _run_search(args: argparse.Namespace, config: Config) -> int:
     return 0
 
 
+def _add_shared_config_flag(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--config", default="config.yaml")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="ucc-a2ui")
-    parser.add_argument("--config", default="config.yaml")
+    _add_shared_config_flag(parser)
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    subparsers.add_parser("sync")
+    sync_parser = subparsers.add_parser("sync")
+    _add_shared_config_flag(sync_parser)
 
     gen_parser = subparsers.add_parser("generate")
+    _add_shared_config_flag(gen_parser)
     gen_parser.add_argument("--prompt", required=True)
     gen_parser.add_argument("--out")
     gen_parser.add_argument("--print-messages", action="store_true")
     gen_parser.add_argument("--save-plan", action="store_true")
 
     val_parser = subparsers.add_parser("validate")
+    _add_shared_config_flag(val_parser)
     val_parser.add_argument("--in", dest="input", required=True)
 
     search_parser = subparsers.add_parser("search")
+    _add_shared_config_flag(search_parser)
     search_parser.add_argument("--query", required=True)
     search_parser.add_argument("--k", type=int, default=5)
 

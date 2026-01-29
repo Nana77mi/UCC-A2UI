@@ -52,7 +52,7 @@ ucc-a2ui sync --config config.yaml
 ### 4.1 生成 UI IR
 
 ```bash
-ucc-a2ui generate --prompt "创建一个包含按钮与文本的页面" --out out/
+ucc-a2ui generate --config config.yaml --prompt "创建一个包含按钮与文本的页面" --out out/
 ```
 
 输出：
@@ -63,13 +63,13 @@ ucc-a2ui generate --prompt "创建一个包含按钮与文本的页面" --out ou
 ### 4.2 校验
 
 ```bash
-ucc-a2ui validate --in out/ui_ir.json
+ucc-a2ui validate --config config.yaml --in out/ui_ir.json
 ```
 
 ### 4.3 搜索（检索组件文档）
 
 ```bash
-ucc-a2ui search --query "按钮" --k 5
+ucc-a2ui search --config config.yaml --query "按钮" --k 5
 ```
 
 ---
@@ -100,4 +100,3 @@ python scripts/debug_run.py
 
 - `generate`：校验通过返回 0；校验失败返回 2；异常返回 1
 - `sync`：成功返回 0；失败返回 1
-

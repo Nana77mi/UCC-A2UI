@@ -186,9 +186,9 @@ llm:
 
 ```bash
 ucc-a2ui sync --config config.yaml
-ucc-a2ui generate --prompt "..." --out out/ [--print-messages] [--save-plan]
-ucc-a2ui validate --in out/ui_ir.json
-ucc-a2ui search --query "..." --k 5
+ucc-a2ui generate --config config.yaml --prompt "..." --out out/ [--print-messages] [--save-plan]
+ucc-a2ui validate --config config.yaml --in out/ui_ir.json
+ucc-a2ui search --config config.yaml --query "..." --k 5
 ```
 
 返回码：
