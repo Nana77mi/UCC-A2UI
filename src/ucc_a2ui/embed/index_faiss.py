@@ -17,10 +17,57 @@ class IndexedChunk:
     chunk_hash: str | None = None
 
 
+class ChunkStore:
+    def __init__(self, chunks_path: str | Path, offsets_path: str | Path) -> None:
+        self.chunks_path = Path(chunks_path)
+        self.offsets_path = Path(offsets_path)
+        self._offsets = self._load_offsets()
+
+    def _load_offsets(self) -> np.ndarray:
+        if self.offsets_path.exists():
+            return np.load(self.offsets_path)
+        if not self.chunks_path.exists():
+            return np.array([], dtype=np.int64)
+        offsets: list[int] = []
+        with self.chunks_path.open("rb") as handle:
+            while True:
+                offset = handle.tell()
+                line = handle.readline()
+                if not line:
+                    break
+                offsets.append(offset)
+        arr = np.asarray(offsets, dtype=np.int64)
+        if offsets:
+            np.save(self.offsets_path, arr)
+        return arr
+
+    def __len__(self) -> int:
+        return int(self._offsets.size)
+
+    def get(self, index: int) -> IndexedChunk:
+        offset = int(self._offsets[index])
+        with self.chunks_path.open("rb") as handle:
+            handle.seek(offset)
+            line = handle.readline()
+        payload = json.loads(line.decode("utf-8"))
+        return IndexedChunk(**payload)
+
+
+class InMemoryChunkStore:
+    def __init__(self, chunks: List[IndexedChunk]) -> None:
+        self._chunks = chunks
+
+    def __len__(self) -> int:
+        return len(self._chunks)
+
+    def get(self, index: int) -> IndexedChunk:
+        return self._chunks[index]
+
+
 @dataclass
 class FaissIndex:
     index: faiss.Index
-    chunks: List[IndexedChunk]
+    chunks: ChunkStore | InMemoryChunkStore
 
 
 def build_faiss_index(
@@ -32,7 +79,7 @@ def build_faiss_index(
     index = faiss.IndexFlatL2(dim)
     arr = np.asarray(vectors, dtype="float32")
     index.add(arr)
-    return FaissIndex(index=index, chunks=chunks)
+    return FaissIndex(index=index, chunks=InMemoryChunkStore(chunks))
 
 
 def create_empty_index(dim: int) -> faiss.Index:
@@ -46,25 +93,20 @@ def add_vectors(index: faiss.Index, vectors: Sequence[Sequence[float]] | np.ndar
     index.add(arr)
 
 
-def save_faiss_index_parts(index_dir: str | Path, index: faiss.Index, chunks: List[IndexedChunk]) -> None:
+def save_faiss_index_parts(index_dir: str | Path, index: faiss.Index) -> None:
     index_dir = Path(index_dir)
     index_dir.mkdir(parents=True, exist_ok=True)
     faiss.write_index(index, str(index_dir / "index.faiss"))
-    metadata = [chunk.__dict__ for chunk in chunks]
-    (index_dir / "meta.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def save_faiss_index(index_dir: str | Path, faiss_index: FaissIndex) -> None:
     index_dir = Path(index_dir)
     index_dir.mkdir(parents=True, exist_ok=True)
     faiss.write_index(faiss_index.index, str(index_dir / "index.faiss"))
-    metadata = [chunk.__dict__ for chunk in faiss_index.chunks]
-    (index_dir / "meta.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def load_faiss_index(index_dir: str | Path) -> FaissIndex:
     index_dir = Path(index_dir)
     index = faiss.read_index(str(index_dir / "index.faiss"))
-    meta = json.loads((index_dir / "meta.json").read_text(encoding="utf-8"))
-    chunks = [IndexedChunk(**item) for item in meta]
-    return FaissIndex(index=index, chunks=chunks)
+    chunk_store = ChunkStore(index_dir / "chunks.jsonl", index_dir / "chunks.offsets.npy")
+    return FaissIndex(index=index, chunks=chunk_store)
