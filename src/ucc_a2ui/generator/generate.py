@@ -83,6 +83,10 @@ def generate_ui(
         (out_dir / "ui_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         return {}, report
 
+    if isinstance(data, dict) and "ir" not in data and "IR" in data:
+        data = {**data, "ir": data.get("IR")}
+    if isinstance(data, dict) and "plan" not in data and "Plan" in data:
+        data = {**data, "plan": data.get("Plan")}
     plan = data.get("plan") if isinstance(data, dict) else None
     ir = data.get("ir") if isinstance(data, dict) else data
     if ir is None:
