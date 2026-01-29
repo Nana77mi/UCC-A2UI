@@ -13,6 +13,8 @@ import numpy as np
 class IndexedChunk:
     text: str
     source: str
+    doc_hash: str | None = None
+    chunk_hash: str | None = None
 
 
 @dataclass

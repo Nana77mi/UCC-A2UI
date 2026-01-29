@@ -135,7 +135,7 @@ llm:
 2. 执行 `ucc-a2ui sync`：
    - 自动生成/更新 `library.json`
    - 重新生成 `docs/components/*.md`
-   - 重建 `index/*`
+   - 增量更新 `index/*`（仅新组件时追加，组件变更/删除会触发重建）
 3. `generate` 立即支持新组件（白名单更新）。
 
 ---

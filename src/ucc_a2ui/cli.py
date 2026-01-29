@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -8,8 +9,14 @@ from pathlib import Path
 from .config import Config
 from .docs import generate_docs
 from .embed import build_embedder
-from .embed.chunker import chunk_documents_with_sources
-from .embed.index_faiss import IndexedChunk, add_vectors, create_empty_index, save_faiss_index_parts
+from .embed.chunker import chunk_text
+from .embed.index_faiss import (
+    IndexedChunk,
+    add_vectors,
+    create_empty_index,
+    load_faiss_index,
+    save_faiss_index_parts,
+)
 from .embed.search import search_index
 from .generator import generate_ui, validate_ir
 from .library import build_whitelist, export_library, load_component_schema_json
@@ -35,25 +42,79 @@ def _run_sync(config: Config) -> int:
     embedder = build_embedder(embed_config)
 
     documents = [(Path(doc).read_text(encoding="utf-8"), str(doc)) for doc in docs]
-    chunk_pairs = chunk_documents_with_sources(
-        documents,
-        chunk_size=int(embed_config.get("chunk_size", 800)),
-        chunk_overlap=int(embed_config.get("chunk_overlap", 120)),
-    )
+    chunk_size = int(embed_config.get("chunk_size", 800))
+    chunk_overlap = int(embed_config.get("chunk_overlap", 120))
     batch_size = int(embed_config.get("batch_size", 64))
+    index_dir = embed_config.get("index_dir", "index/ucc_docs")
+    index_path = Path(index_dir) / "index.faiss"
+    meta_path = Path(index_dir) / "meta.json"
+
+    doc_hashes = {
+        source: hashlib.sha256(text.encode("utf-8")).hexdigest() for text, source in documents
+    }
+
+    existing_chunks: list[IndexedChunk] = []
+    existing_doc_hashes: dict[str, str] = {}
+    existing_index = None
+    if index_path.exists() and meta_path.exists():
+        faiss_index = load_faiss_index(index_dir)
+        existing_index = faiss_index.index
+        existing_chunks = faiss_index.chunks
+        for chunk in existing_chunks:
+            if chunk.doc_hash:
+                existing_doc_hashes[chunk.source] = chunk.doc_hash
+
+    current_sources = set(doc_hashes.keys())
+    existing_sources = set(existing_doc_hashes.keys())
+    removed_sources = existing_sources - current_sources
+    changed_sources = {
+        source for source in current_sources if existing_doc_hashes.get(source) not in (None, doc_hashes[source])
+    }
+    new_sources = current_sources - existing_sources
+
+    def build_chunks(target_sources: set[str]) -> list[IndexedChunk]:
+        chunks: list[IndexedChunk] = []
+        for text, source in documents:
+            if source not in target_sources:
+                continue
+            doc_hash = doc_hashes[source]
+            for chunk in chunk_text(text, chunk_size, chunk_overlap):
+                chunk_hash = hashlib.sha256(chunk.encode("utf-8")).hexdigest()
+                chunks.append(
+                    IndexedChunk(text=chunk, source=source, doc_hash=doc_hash, chunk_hash=chunk_hash)
+                )
+        return chunks
+
     indexed_chunks: list[IndexedChunk] = []
     index = None
-    for start in range(0, len(chunk_pairs), batch_size):
-        batch = chunk_pairs[start : start + batch_size]
-        chunks = [chunk for chunk, _ in batch]
-        vectors = embedder.embed(chunks).vectors
-        if index is None:
-            index = create_empty_index(len(vectors[0]))
-        add_vectors(index, vectors)
-        indexed_chunks.extend(IndexedChunk(text=chunk, source=source) for chunk, source in batch)
+    index_status = "rebuilt"
+
+    if removed_sources or changed_sources:
+        indexed_chunks = build_chunks(current_sources)
+        for start in range(0, len(indexed_chunks), batch_size):
+            batch = indexed_chunks[start : start + batch_size]
+            vectors = embedder.embed([chunk.text for chunk in batch]).vectors
+            if index is None:
+                index = create_empty_index(len(vectors[0]))
+            add_vectors(index, vectors)
+    elif new_sources:
+        indexed_chunks = existing_chunks + build_chunks(new_sources)
+        if existing_chunks:
+            index = existing_index
+        for start in range(len(existing_chunks), len(indexed_chunks), batch_size):
+            batch = indexed_chunks[start : start + batch_size]
+            vectors = embedder.embed([chunk.text for chunk in batch]).vectors
+            if index is None:
+                index = create_empty_index(len(vectors[0]))
+            add_vectors(index, vectors)
+        index_status = "appended"
+    else:
+        indexed_chunks = existing_chunks
+        index_status = "unchanged"
+        index = existing_index
+
     if index is None:
         raise ValueError("No chunks to index")
-    index_dir = embed_config.get("index_dir", "index/ucc_docs")
     save_faiss_index_parts(index_dir, index, indexed_chunks)
 
     summary = {
@@ -61,6 +122,10 @@ def _run_sync(config: Config) -> int:
         "docs": len(docs),
         "chunks": len(indexed_chunks),
         "index_dir": index_dir,
+        "index_status": index_status,
+        "changed_components": len(changed_sources),
+        "new_components": len(new_sources),
+        "removed_components": len(removed_sources),
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0

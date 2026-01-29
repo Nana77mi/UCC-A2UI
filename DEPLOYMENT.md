@@ -43,7 +43,7 @@ ucc-a2ui sync --config config.yaml
 该命令会：
 1. 生成 `library.json`
 2. 生成 `docs/components/*.md`
-3. 构建向量索引 `index/*`
+3. 增量构建向量索引 `index/*`（仅新增组件时追加；变更/删除组件会触发重建）
 
 如需降低内存占用，可在 `config.yaml` 的 `embed.batch_size` 中调小批次大小。
 
