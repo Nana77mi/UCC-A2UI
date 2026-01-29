@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import gc
 import json
 import sys
 from pathlib import Path
@@ -117,6 +118,8 @@ def _run_sync(config: Config) -> int:
             if index is None:
                 index = create_empty_index(len(vectors[0]))
             add_vectors(index, vectors)
+            del vectors
+            gc.collect()
     elif new_sources:
         print("[sync] appending new docs to index")
         indexed_chunks = existing_chunks
@@ -130,6 +133,8 @@ def _run_sync(config: Config) -> int:
             if index is None:
                 index = create_empty_index(len(vectors[0]))
             add_vectors(index, vectors)
+            del vectors
+            gc.collect()
         index_status = "appended"
     else:
         print("[sync] no doc changes detected; index unchanged")
